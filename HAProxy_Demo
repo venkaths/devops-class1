@@ -1,0 +1,249 @@
+Prerequisite Concepts  - 
+
+- Hosts file in Linux :
+
+
+- Web Server : Apache & Nginx, IIS
+
+:: Steps to deploy a package in Linux:
+1. Install it --> # yum install httpd
+2. Configure it --> checking the config file
+3. Start the service.
+
+
+:: Installing Apache in CentOS 7 ::
+
+The Apache web server is one of the most popular and powerful web servers in the world, due to its ease of administration and flexibility.
+
+# yum -y install httpd
+# systemctl start httpd
+# systemctl enable httpd
+
+-Config file: /etc/httpd/httpd.conf
+
+-Common config parameters-
+
+Listen 80
+DocumentRoot "/var/www/html"
+DirectoryIndex index.html index.php home.html
+
+-Installing SSL Module:
+
+# yum install mod_ssl
+
+
+- Putting HTML content for Webpage in Apache:
+
+Location of document root - /var/www/html/
+Inside it put the file 'index.html'
+
+- Content of index.html at server 1
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+    background-color: #93B874;
+}
+h1 {
+    background-color: orange;
+}
+</style>
+</head>
+<body>
+<h1>WEBPAGE AT APACHE SERVER ONE</h1>
+</body>
+</html>
+
+- Content of index.html at server 2
+
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+    background-color: #93B874;
+}
+h1 {
+    background-color: yellow;
+}
+</style>
+</head>
+<body>
+<h1>WEBPAGE AT APACHE SERVER TWO</h1>
+</body>
+</html>
+
+
+
+-Check Port if apache is 'listening' or not:
+
+#netstat -tulpn
+
+
+
+::LOAD BALANCER::
+
+- Hardware LB -- Cisco LB, CITRIX, BIG5
+- Software LB -- HaProxy, Redhat_Heartbeat (IPV) - defunct, Nginx(Reverse Proxy)
+
+
+:: Algorithm's
+
+Balance Algorithm
+
+This is the algorithm that is used by HAProxy to select the server when doing the load balancing. The following modes are available:
+
+. Roundrobin
+This is the most simple balance algorithm. For each new connection, it will be handled by the next backend server. If the last backend server in the list is reached, it will start again from the top of backend list.
+. Leastconn
+The new connection will be handled by the backend server with least amount of connections. This is useful when the time and load of the requests vary a lot.
+. Source
+This is for sticky sessions, the client IP will be hashed to determine the backend server that received the last request from this IP. So an IP A will always be handled by backend1, and IP B will always be handled by backend2 to not interrupt sessions
+
+
+
+:: Configuring HAPROXY LOAD-BALANCER SERVER ::
+
+
+# yum -y install haproxy
+# cd /etc/haproxy/
+# mv haproxy.cfg haproxy.cfg.orig
+
+# vi haproxy.cfg
+
+
+Paste the configuration below:
+
+
+#---------------------------------------------------------------------
+# Global settings
+#---------------------------------------------------------------------
+global
+    log         127.0.0.1 local2     #Log configuration
+
+    chroot      /var/lib/haproxy
+    pidfile     /var/run/haproxy.pid
+    maxconn     4000
+    user        haproxy             #Haproxy running under user and group "haproxy"
+    group       haproxy
+    daemon
+
+    # turn on stats unix socket
+    stats socket /var/lib/haproxy/stats
+
+#---------------------------------------------------------------------
+# common defaults that all the 'listen' and 'backend' sections will
+# use if not designated in their block
+#---------------------------------------------------------------------
+defaults
+    mode                    http
+    log                     global
+    option                  httplog
+    option                  dontlognull
+    option http-server-close
+    option forwardfor       except 127.0.0.0/8
+    option                  redispatch
+    retries                 3
+    timeout http-request    10s
+    timeout queue           1m
+    timeout connect         10s
+    timeout client          1m
+    timeout server          1m
+    timeout http-keep-alive 10s
+    timeout check           10s
+    maxconn                 3000
+
+#---------------------------------------------------------------------
+#HAProxy Monitoring Config
+#---------------------------------------------------------------------
+listen haproxy3-monitoring *:8080                #Haproxy Monitoring run on port 8080
+    mode http
+    option forwardfor
+    option httpclose
+    stats enable
+    stats show-legends
+    stats refresh 5s
+    stats uri /stats                             #URL for HAProxy monitoring
+    stats realm Haproxy\ Statistics
+    stats auth admin:intellipaat            #User and Password for monitoring dashboard
+    stats admin if TRUE
+    default_backend app-main                    #This is optionally for monitoring backend
+
+#---------------------------------------------------------------------
+# FrontEnd Configuration
+#---------------------------------------------------------------------
+frontend main
+    bind *:80
+    option http-server-close
+    option forwardfor
+    default_backend app-main
+
+#---------------------------------------------------------------------
+# BackEnd roundrobin as balance algorithm
+#---------------------------------------------------------------------
+backend app-main
+    balance roundrobin                                    #Balance algorithm
+    option httpchk HEAD / HTTP/1.1\r\nHost:\ localhost    #Check health
+    server server1 192.168.1.104:80 check                 #server1
+    server server2 192.168.1.102:80 check                 #server2
+
+#-END-OF-HA-CONFIG-----------------------------------------------------------------
+
+systemctl start haproxy
+systemctl enable haproxy
+
+
+>>>>>>>> ADVANCED HAPROXY
+
+Concepts Covered:::
+_Haproxy non standard port forward
+-HAProxy Multi Port Config:
+
+Disable SELinux or Add SELinux context-
+setsebool -P haproxy_connect_any=1
+
+Then change port for frontend in haproxy.cfg
+
+-HAProxy SSL Setup Configs- (443/https)
+To install SSL Module in Apache:
+yum install mod_ssl
+Check SSL config file for listening ports and certificates:
+vi /etc/httpd/conf.d/ssl.conf
+
+
+
+#HTTPS/SSL IN HAPROXY
+
+Please follow below steps:
+
+a-You have to run the following commands in any one of the webservers:
+
+cat /etc/pki/tls/certs/localhost.crt > /etc/pki/tls/certs/localhost.pem
+cat /etc/pki/tls/private/localhost.key >> /etc/pki/tls/certs/localhost.pem
+
+b- The above commands will create a "localhost.pem" certificate file. Copy that file to /etc/pki/tls/certs/ location in the haproxy server. (You can keep it in any other path as well, but I have used that path for this lab)
+
+c- Now below is the haproxy config section for https, I have tested it works fine:
+
+#----------------------------------------------------#
+#HTTPS
+
+frontend https_frontend
+  bind *:443 ssl crt /etc/pki/tls/certs/localhost.pem
+  mode http
+  option httpclose
+  option forwardfor
+  reqadd X-Forwarded-Proto:\ https
+  default_backend web_server
+
+backend web_server
+  mode http
+  balance roundrobin
+  cookie SERVERID insert indirect nocache
+  server server1 192.168.1.104:80 check cookie server1
+  server server2 192.168.1.102:80 check cookie server2
+#----------------------------------------------------#
+
+d- After adding the above in haproxy.cfg you can restart the haproxy service. This config is working because we are using the SSL certificate in haproxy server instead of apache server and port forwarding backend to 80 port but frontend remains as 443. So that resolves the problem of "SSL received a record that exceeded the maximum permissible length."
