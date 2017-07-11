@@ -1,0 +1,167 @@
+'''''''''''''''''''''''''''''
+Version Control + Build Management
+'''''''''''''''''''''''''''''
+GIT
+
+**** create a new repository
+create a new directory, open it and perform a
+# git init
+to create a new git repository.
+
+
+**** checkout a repository
+create a working copy of a local repository by running the command
+# git clone /path/to/repository
+when using a remote server, your command will be
+# git clone username@host:/path/to/repository
+
+
+
+**** add & commit
+You can propose changes (add it to the Index) using
+# git add <filename>
+# git add *
+This is the first step in the basic git workflow. To actually commit these changes use
+# git commit -m "Commit message"
+Now the file is committed to the HEAD, but not in your remote repository yet.
+
+
+**** pushing changes
+Your changes are now in the HEAD of your local working copy. To send those changes to your remote repository, execute
+# git push origin master
+Change master to whatever branch you want to push your changes to.
+
+If you have not cloned an existing repository and want to connect your repository to a remote server, you need to add it with
+# git remote add origin <server>
+Now you are able to push your changes to the selected remote server
+
+
+
+**** branching
+Branches are used to develop features isolated from each other.
+The master branch is the "default" branch when you create a repository.
+Use other branches for development and merge them back to the master branch upon completion.
+
+create a new branch named "feature_x" and switch to it using
+# git checkout -b feature_x
+switch back to master
+# git checkout master
+and delete the branch again
+# git branch -d feature_x
+a branch is not available to others unless you push the branch to your remote repository
+# git push origin <branch>
+
+
+
+**** update & merge
+to update your local repository to the newest commit, execute
+# git pull
+in your working directory to fetch and merge remote changes.
+to merge another branch into your active branch (e.g. master), use
+# git merge <branch>
+in both cases git tries to auto-merge changes. Unfortunately, this is not always possible and results in conflicts. You are responsible to merge those conflicts manually by editing the files shown by git. After changing, you need to mark them as merged with
+# git add <filename>
+before merging changes, you can also preview them by using
+# git diff <source_branch> <target_branch>
+
+
+#EAZYGIT
+function eazygit() {
+    git add .
+    git commit -a -m "$1"
+    git push
+}
+
+
+
+
+## --------- SVN
+
+1.) Checkout the code and do an update in case of any changes made since your last update (We assume that you are using apache dav server to access your code and not svnserve):
+
+$svn checkout http://192.168.1.102/svn/repos/server_code server_code
+
+If your repository requires authentication:
+
+$svn checkout –username my_username http://192.168.1.102/svn/repos/server_code server_code
+
+Update your working copy:
+
+$svn update
+(update from current)
+$svn update -r BASE server_code
+(update foo from base revision)
+$svn update -r 1200 server_code (update foo from revision number 1200)
+
+2.) Make changes:
+
+$svn add eg svn add new_directory
+(add a new directory foo)
+$svn delete
+$svn copy directory1 directory2
+(copy directory directory1 to directory2)
+$svn move directory2 renamed_directory
+(rename?)
+
+3.) Examine your changes (Can be done even with no network access to the subversion repository):
+
+$svn status
+(To get an overview of all your changes)
+eg
+A stuff/loot/bloo.h # file is scheduled for addition
+C stuff/loot/lump.c # file has textual conflicts from an update
+D stuff/fish.c # file is scheduled for deletion
+M bar.c # the content in bar.c has local modifications
+
+$svn diff
+(to show changes between current working directory and the same directory in the repository)
+
+4.) Possibly undo some changes (Can also be done even with no network access to the subversion repository):
+
+$svn revert
+After running svn revert as a way to resolve local conflict with the repository copy, Run:
+
+$svn resolve
+To inform svn that the conflict has been resolved. You will now be able to successfully run svn update in case of previous conflicts.
+
+5.) Resolve Conflicts (Merge Others’ Changes):
+
+$svn update
+$svn resolved
+
+6.) Commit your changes:
+
+$svn commit
+eg
+$svn commit -m “Removed out of mem errors.”
+or
+$svn commit -F comment.txt
+or
+$svn commit –file comment.txt
+
+============================
+
+Branch Stucture --
+                                                        DevOps
+
+Developers:                           CI/CD+QA                         SystemAdmin
+            Merged
+feature.1    ---->    develop  ----> Deployed+Tested ----> Master ---> Production > Server
+feature.2
+feature.n
+
+
+============================
+Local GIT Server Testing:
+
+##Server Side
+mkdir -p /srv/repos/
+cd /srv/repos/
+mkdir webspace.git
+cd webspace.git
+git init --bare
+
+
+##Client Side
+
+git clone ssh://root@192.168.1.102/srv/repos/webspace.git
